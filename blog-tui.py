@@ -50,7 +50,6 @@ BASE = pathlib.Path(__file__).resolve().parent
 POSTS_DIR = BASE / "_posts"
 IMG_DIR = BASE / "assets" / "img"
 PROJECTS_FILE = BASE / "_data" / "projects.yml"
-ASCII_FILE = BASE / "_data" / "ascii_arts.yml"
 
 GITHUB_REPO = "Bat-airs/Bat-airs.github.io"
 SITE_URL = "https://bat-airs.github.io"
@@ -139,65 +138,6 @@ def save_projects(items: list) -> None:
         items, allow_unicode=True, sort_keys=False, default_flow_style=False,
     )
     PROJECTS_FILE.write_text(text, encoding="utf-8")
-
-
-def load_ascii_arts() -> list:
-    """读取 _data/ascii_arts.yml 的字符画列表。"""
-    if yaml is None or not ASCII_FILE.exists():
-        return []
-    try:
-        data = yaml.safe_load(ASCII_FILE.read_text(encoding="utf-8"))
-        return data if isinstance(data, list) else []
-    except Exception:
-        return []
-
-
-def save_ascii_arts(items: list) -> None:
-    """写回 _data/ascii_arts.yml（使用 |2 字面块，文件里可直接阅读字符画）。"""
-    ASCII_FILE.parent.mkdir(parents=True, exist_ok=True)
-
-    def _plain(s: str) -> str:
-        """标题等短字段简单转义。"""
-        return s.replace("\\", "\\\\").replace("\n", " ")
-
-    out = []
-    for it in items:
-        out.append(f"- title: {_plain(it.get('title', ''))}")
-        if it.get("color"):
-            out.append(f"  color: {it['color']}")
-        if it.get("ansi"):
-            out.append("  ansi: true")
-        out.append("  art: |2")
-        for line in it.get("art", "").split("\n"):
-            # YAML 不允许原始 ESC 控制符：转义为字面 \x1b，前端再还原
-            line = line.replace("\x1b", "\\x1b")
-            out.append("    " + line)  # 4 空格基准 + 保留原有前导空格
-    ASCII_FILE.write_text("\n".join(out) + "\n", encoding="utf-8")
-
-
-def decode_ansi(art: str) -> str:
-    """把存储的字面 \x1b 还原为真实 ESC（用于预览/查看）。"""
-    return art.replace("\\x1b", "\x1b")
-
-
-def chafa_generate(image: str, width: int, height: int = 0) -> str:
-    """用 chafa 把图片转成 ANSI 彩色 Unicode 字符画。"""
-    chafa = shutil.which("chafa")
-    if not chafa:
-        raise RuntimeError("未找到 chafa，请先安装（sudo apt install chafa）")
-    if not os.path.isfile(image):
-        raise FileNotFoundError(f"图片不存在: {image}")
-    size = str(width) if not height else f"{width}x{height}"
-    cmd = [chafa, "--format", "symbols", "--size", size, image]
-    r = subprocess.run(
-        cmd, capture_output=True, text=True, encoding="utf-8", errors="replace",
-    )
-    if r.returncode != 0:
-        raise RuntimeError(r.stderr.strip() or "chafa 运行失败")
-    out = r.stdout
-    # 清洗对网页无意义的控制码（光标隐藏/显示、反显）
-    out = out.replace("\x1b[?25l", "").replace("\x1b[?25h", "").replace("\x1b[7m", "")
-    return out.rstrip("\n")
 
 
 def list_posts() -> list:
@@ -405,129 +345,6 @@ class ProjectEditScreen(ModalScreen):
         self.app.pop_screen()
 
 
-class AsciiArtEditScreen(ModalScreen):
-    """字符画编辑弹窗（新建/编辑）。"""
-
-    BINDINGS = [Binding("escape", "cancel", "取消")]
-
-    def __init__(self, item: dict | None = None, index: int | None = None, **kwargs):
-        super().__init__(**kwargs)
-        self.item = item or {"title": "", "art": "", "color": ""}
-        self.index = index  # None = 新建
-
-    def compose(self) -> ComposeResult:
-        with Vertical(id="art-box"):
-            yield Label("🎨 新建字符画" if self.index is None else "✏️ 编辑字符画")
-            yield Input(self.item.get("title", ""), placeholder="标题（可选）", id="a-title")
-            yield Input(self.item.get("color", ""), placeholder="颜色（可选，如 #ff76a4；留空=彩虹渐变）", id="a-color")
-            yield Label("字符画内容（多行，支持 Unicode 字符）:", id="a-lab")
-            yield TextArea(self.item.get("art", ""), id="a-art")
-            with Horizontal(id="art-bar"):
-                yield Button("保存", id="a-save", variant="primary")
-                yield Button("取消", id="a-close")
-
-    def on_button_pressed(self, event: Button.Pressed) -> None:
-        if event.button.id == "a-save":
-            color = self.query_one("#a-color", Input).value.strip()
-            art = self.query_one("#a-art", TextArea).text.rstrip("\n")
-            data = {
-                "title": self.query_one("#a-title", Input).value.strip(),
-                "art": art,
-            }
-            if color:
-                data["color"] = color
-            if "\x1b" in art:  # 含 ANSI 转义码 = chafa 彩色字符画
-                data["ansi"] = True
-            if not art.strip():
-                self.notify("字符画内容不能为空", severity="error", timeout=3)
-                return
-            items = load_ascii_arts()
-            if self.index is None:
-                items.append(data)
-            else:
-                items[self.index] = data
-            save_ascii_arts(items)
-            self.notify("已保存字符画，记得按 p 发布", severity="information", timeout=4)
-            self.app.pop_screen()
-            self.app.refresh_ascii_arts()
-        else:
-            self.app.pop_screen()
-
-    def action_cancel(self) -> None:
-        self.app.pop_screen()
-
-
-class ChafaScreen(ModalScreen):
-    """从图片生成字符画（chafa）。"""
-
-    BINDINGS = [Binding("escape", "cancel", "取消")]
-
-    def compose(self) -> ComposeResult:
-        with Vertical(id="chafa-box"):
-            yield Label("🖼️ 从图片生成字符画（chafa）")
-            yield Input(placeholder="图片路径（如 /home/bat/桌面/a.png）", id="c-img")
-            yield Input(placeholder="宽度（字符数，如 60）", id="c-width")
-            yield Input(placeholder="高度（可选，留空自动按比例）", id="c-height")
-            with Horizontal(id="chafa-bar"):
-                yield Button("生成", id="c-go", variant="primary")
-                yield Button("取消", id="c-close")
-
-    def on_button_pressed(self, event: Button.Pressed) -> None:
-        if event.button.id == "c-go":
-            img = self.query_one("#c-img", Input).value.strip()
-            try:
-                width = int(self.query_one("#c-width", Input).value.strip() or 60)
-            except ValueError:
-                self.notify("宽度必须是数字", severity="error", timeout=3)
-                return
-            height = 0
-            hv = self.query_one("#c-height", Input).value.strip()
-            if hv:
-                try:
-                    height = int(hv)
-                except ValueError:
-                    self.notify("高度必须是数字", severity="error", timeout=3)
-                    return
-            try:
-                art = chafa_generate(img, width, height)
-            except Exception as e:
-                self.notify(str(e), severity="error", timeout=5)
-                return
-            self.notify("已生成，可修改后保存", severity="information", timeout=3)
-            self.app.pop_screen()
-            self.app.push_screen(AsciiArtEditScreen({"title": "", "art": art}))
-        else:
-            self.app.pop_screen()
-
-    def action_cancel(self) -> None:
-        self.app.pop_screen()
-
-
-class ArtPreviewScreen(Screen):
-    """字符画预览（终端内正确排版；ANSI 码显示彩色）。"""
-
-    BINDINGS = [Binding("escape", "close", "关闭"), Binding("q", "close", "关闭")]
-
-    def __init__(self, item: dict, **kwargs):
-        super().__init__(**kwargs)
-        self.item = item
-
-    def compose(self) -> ComposeResult:
-        yield Header(show_clock=True)
-        title = self.item.get("title") or "（无标题）"
-        yield Label(f"🎨 {title}", id="preview-title")
-        art = self.item.get("art", "")
-        if self.item.get("ansi"):
-            art = decode_ansi(art)
-        text = RichText.from_ansi(art) if self.item.get("ansi") else RichText(art)
-        yield Static(text, id="preview-body")
-        yield Label("ESC 或 q 返回", id="preview-hint")
-        yield Footer()
-
-    def action_close(self) -> None:
-        self.app.pop_screen()
-
-
 class ConfirmScreen(ModalScreen):
     """确认弹窗。"""
 
@@ -585,30 +402,6 @@ class BlogApp(App):
     #proj-actions Button { margin-right: 1; }
     #proj-hint { color: $text-muted; padding-top: 1; }
     #posts-hint { color: $text-muted; padding-top: 1; }
-    #art-box {
-        width: 80; height: 28; padding: 1 2;
-        border: thick $primary; background: $surface;
-        align-horizontal: center; align-vertical: middle;
-    }
-    #art-box Input { margin: 0 0 1 0; }
-    #a-lab { color: $text-muted; margin-bottom: 1; }
-    #a-art { height: 12; border: round $primary; }
-    #art-bar { align-horizontal: center; padding-top: 1; }
-    #art-bar Button { margin: 0 1; }
-    #art-actions { height: auto; padding: 0 0 1 0; }
-    #art-actions Button { margin-right: 1; }
-    #art-hint { color: $text-muted; padding-top: 1; }
-    #preview-title { padding: 1 2; text-style: bold; }
-    #preview-body { padding: 1 2; border: round $primary; height: 1fr; }
-    #preview-hint { color: $text-muted; padding: 0 2; }
-    #chafa-box {
-        width: 70; height: auto; padding: 1 2;
-        border: thick $primary; background: $surface;
-        align-horizontal: center; align-vertical: middle;
-    }
-    #chafa-box Input { margin: 0 0 1 0; }
-    #chafa-bar { align-horizontal: center; padding-top: 1; }
-    #chafa-bar Button { margin: 0 1; }
     """
     BINDINGS = [
         Binding("q", "quit", "退出"),
@@ -639,23 +432,12 @@ class BlogApp(App):
                         yield Button("编辑", id="proj-edit-btn")
                         yield Button("删除", id="proj-del-btn", variant="error")
                     yield Label("Enter 编辑 · d 删除 · 保存后按 p 发布到博客", id="proj-hint")
-            with TabPane("🎨 字符画", id="arts"):
-                with Vertical(id="art-pane"):
-                    yield ListView(id="art-list")
-                    with Horizontal(id="art-actions"):
-                        yield Button("新建字符画", id="art-new-btn")
-                        yield Button("从图片生成", id="art-chafa-btn")
-                        yield Button("预览", id="art-prev-btn")
-                        yield Button("编辑", id="art-edit-btn")
-                        yield Button("删除", id="art-del-btn", variant="error")
-                    yield Label("Enter 编辑 · v 预览 · d 删除 · 保存后按 p 发布", id="art-hint")
         yield Footer()
 
     def on_mount(self) -> None:
         self.refresh_dashboard()
         self.refresh_posts()
         self.refresh_projects()
-        self.refresh_ascii_arts()
 
     # ---------- 工具 ----------
     def refresh_dashboard(self) -> None:
@@ -686,25 +468,6 @@ class BlogApp(App):
         lv = self.query_one("#project-list", ListView)
         idx = lv.index
         items = load_projects()
-        if idx is None or idx >= len(items):
-            return None, None
-        return idx, items[idx]
-
-    def refresh_ascii_arts(self) -> None:
-        lv = self.query_one("#art-list", ListView)
-        lv.clear()
-        items = load_ascii_arts()
-        if not items:
-            lv.append(ListItem(Label("（还没有字符画，点「新建字符画」添加）")))
-            return
-        for it in items:
-            title = it.get("title") or "（无标题）"
-            lv.append(ListItem(Label(f"🎨 {title}")))
-
-    def selected_ascii_art(self):
-        lv = self.query_one("#art-list", ListView)
-        idx = lv.index
-        items = load_ascii_arts()
         if idx is None or idx >= len(items):
             return None, None
         return idx, items[idx]
@@ -744,37 +507,6 @@ class BlogApp(App):
                 self.refresh_projects()
 
             self.push_screen(ConfirmScreen(f"确认删除项目：\n{item.get('name')}？", do_del))
-        elif bid == "art-new-btn":
-            self.push_screen(AsciiArtEditScreen())
-        elif bid == "art-chafa-btn":
-            self.push_screen(ChafaScreen())
-        elif bid == "art-prev-btn":
-            idx, item = self.selected_ascii_art()
-            if item is None:
-                self.notify("没有选中的字符画", severity="warning", timeout=2)
-            else:
-                self.push_screen(ArtPreviewScreen(item))
-        elif bid == "art-edit-btn":
-            idx, item = self.selected_ascii_art()
-            if item is None:
-                self.notify("没有选中的字符画", severity="warning", timeout=2)
-            else:
-                self.push_screen(AsciiArtEditScreen(item, idx))
-        elif bid == "art-del-btn":
-            idx, item = self.selected_ascii_art()
-            if item is None:
-                self.notify("没有选中的字符画", severity="warning", timeout=2)
-                return
-
-            def do_del():
-                items = load_ascii_arts()
-                if idx < len(items):
-                    items.pop(idx)
-                    save_ascii_arts(items)
-                    self.notify(f"已删除 {item.get('title') or item.get('art', '')[:10]}", severity="warning", timeout=3)
-                self.refresh_ascii_arts()
-
-            self.push_screen(ConfirmScreen(f"确认删除字符画：\n{item.get('title') or '（无标题）'}？", do_del))
 
     def on_list_view_selected(self, event: ListView.Selected) -> None:
         lv = getattr(event, "list_view", None)
@@ -784,41 +516,12 @@ class BlogApp(App):
             if item is not None:
                 self.push_screen(ProjectEditScreen(item, idx))
             return
-        if lid == "art-list":
-            idx, item = self.selected_ascii_art()
-            if item is not None:
-                self.push_screen(AsciiArtEditScreen(item, idx))
-            return
         posts = list_posts()
         idx = self.query_one("#post-list", ListView).index
         if idx is not None and idx < len(posts):
             self.push_screen(EditorScreen(posts[idx]["path"]))
 
     def on_key(self, event) -> None:
-        if self.screen is self:
-            art_lv = self.query_one("#art-list", ListView)
-            if art_lv.has_focus and event.key == "v":
-                idx, item = self.selected_ascii_art()
-                if item is not None:
-                    self.push_screen(ArtPreviewScreen(item))
-                return
-        if event.key == "d" and self.screen is self:
-            art_lv = self.query_one("#art-list", ListView)
-            if art_lv.has_focus:
-                idx, item = self.selected_ascii_art()
-                if item is None:
-                    return
-
-                def do_del():
-                    items = load_ascii_arts()
-                    if idx < len(items):
-                        items.pop(idx)
-                        save_ascii_arts(items)
-                        self.notify(f"已删除 {item.get('title') or '（无标题）'}", severity="warning", timeout=3)
-                    self.refresh_ascii_arts()
-
-                self.push_screen(ConfirmScreen(f"确认删除字符画：\n{item.get('title') or '（无标题）'}？", do_del))
-                return
             proj_lv = self.query_one("#project-list", ListView)
             if proj_lv.has_focus:
                 idx, item = self.selected_project()
