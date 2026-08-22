@@ -1,0 +1,16 @@
+---
+layout: default
+title: 博客
+---
+
+<section class="section">
+  <h2 class="sec-title">全部文章 <span class="sec-en">ARCHIVE</span></h2>
+  <ul class="post-list">
+    {% for post in site.posts %}
+    <li>
+      <a href="{{ post.url }}">{{ post.title }}</a>
+      <span class="date">{{ post.date | date: "%Y-%m-%d" }}</span>
+    </li>
+    {% endfor %}
+  </ul>
+</section>

@@ -1,0 +1,25 @@
+# Bat airs 的个人博客 / 作品集
+title: Bat airs
+description: 个人博客与作品集 — 代码 · 创意 · ASCII 艺术
+tagline: 代码 · 创意 · ASCII 艺术
+author: Bat airs
+email: 1904875023@qq.com
+
+# 站点地址（个人站点，根路径）
+url: "https://bat-airs.github.io"
+baseurl: ""
+
+lang: zh-CN
+timezone: Asia/Shanghai
+
+# 构建
+markdown: kramdown
+highlighter: rouge
+
+# 文章
+permalink: /blog/:year/:month/:day/:title/
+future: true
+
+# 作者信息（用于页脚等）
+social:
+  github: https://github.com/Bat-airs
