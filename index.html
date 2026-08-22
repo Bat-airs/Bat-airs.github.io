@@ -74,72 +74,8 @@ title: 首页
     {% endif %}
   </div>
 </section>
+<script src="https://cdn.jsdelivr.net/npm/ansi_up@5.2.1/ansi_up.min.js"></script>
 <script>
-/* ===== ANSI → HTML 彩色渲染器（内联，零外部依赖）===== */
-(function () {
-  var BASIC = ["#000", "#a00", "#0a0", "#a50", "#00a", "#a0a", "#0aa", "#aaa",
-               "#555", "#f55", "#5f5", "#ff5", "#55f", "#f5f", "#5ff", "#fff"];
-  function xterm256(n) {
-    if (n < 16) return BASIC[n];
-    if (n < 232) {
-      n -= 16;
-      function v(c) { return c === 0 ? "00" : (55 + c * 40).toString(16); }
-      return "#" + v(Math.floor(n / 36)) + v(Math.floor((n % 36) / 6)) + v(n % 6);
-    }
-    var g = (8 + (n - 232) * 10).toString(16);
-    return "#" + g + g + g;
-  }
-  window.ansiToHtml = function (text) {
-    var esc = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    var html = "", fg = null, bg = null, open = false;
-    var re = /\x1b\[([0-9;]*)m/g;
-    var last = 0, m;
-    function close() { if (open) { html += "</span>"; open = false; } }
-    function apply() {
-      close();
-      var parts = [];
-      if (fg) parts.push("color:" + fg);
-      if (bg) parts.push("background-color:" + bg);
-      if (parts.length) { html += '<span style="' + parts.join(";") + '">'; open = true; }
-    }
-    while ((m = re.exec(esc)) !== null) {
-      html += esc.slice(last, m.index);
-      last = m.index + m[0].length;
-      var codes = m[1] ? m[1].split(";").map(Number) : [0];
-      var i = 0;
-      while (i < codes.length) {
-        var c = codes[i];
-        if (c === 0) { fg = null; bg = null; i++; }
-        else if (c >= 30 && c <= 37) { fg = BASIC[c - 30]; i++; }
-        else if (c >= 90 && c <= 97) { fg = BASIC[c - 90 + 8]; i++; }
-        else if (c >= 40 && c <= 47) { bg = BASIC[c - 40]; i++; }
-        else if (c >= 100 && c <= 107) { bg = BASIC[c - 100 + 8]; i++; }
-        else if ((c === 38 || c === 48) && codes[i + 1] === 5) {
-          var col5 = xterm256(codes[i + 2]);
-          if (c === 38) fg = col5; else bg = col5;
-          i += 3;
-        } else if ((c === 38 || c === 48) && codes[i + 1] === 2) {
-          var col2 = "rgb(" + codes[i + 2] + "," + codes[i + 3] + "," + codes[i + 4] + ")";
-          if (c === 38) fg = col2; else bg = col2;
-          i += 5;
-        } else i++;
-      }
-      apply();
-    }
-    html += esc.slice(last);
-    close();
-    return html;
-  };
-  window.stripAnsi = function (text) {
-    return text.replace(/\x1b\[[0-9;?]*[A-Za-z]/g, "");
-  };
-  window.cleanAnsi = function (text) {
-    return text
-      .replace(/\\x1b/g, "\x1b")
-      .replace(/\x1b\[\?25[lh]/g, "")
-      .replace(/\x1b\[[0-9;?]*[A-LN-Za-ln-z]/g, "");
-  };
-})();
 (function () {
   var track = document.getElementById("marqueeTrack");
   var btn = document.getElementById("scrollToggle");
@@ -159,20 +95,15 @@ title: 首页
     }
   });
 })();
-/* ---- ANSI 彩色字符画渲染（内联渲染器，无任何外部依赖）---- */
-function renderArts() {
-  document.querySelectorAll(".ansi-art").forEach(function (pre) {
-    var txt = window.cleanAnsi ? cleanAnsi(pre.textContent) : pre.textContent;
-    try {
-      pre.innerHTML = ansiToHtml(txt);
-      pre.setAttribute("data-rendered", "ok");
-    } catch (e) {
-      console.error("[ansi-art] 渲染失败，退回纯文本:", e);
-      pre.textContent = stripAnsi(txt);
-      pre.setAttribute("data-rendered", "plain");
-    }
-  });
-}
+/* ANSI 彩色字符画（chafa 输出）渲染 */
+document.querySelectorAll(".ansi-art").forEach(function (pre) {
+  var txt = pre.textContent
+    .replace(/\\x1b/g, "\x1b")      /* 还原字面 \x1b 为真实 ESC */
+    .replace(/\x1b\[\?25l/g, "")
+    .replace(/\x1b\[\?25h/g, "")
+    .replace(/\x1b\[7m/g, "");
+  pre.innerHTML = new AnsiUp().ansi_to_html(txt);
+});
 /* 字符画渲染校准：实测字形宽比 r，行高 = 2r（匹配 chafa 的 1:2 字符格假设） */
 function measureGlyphRatio() {
   var probe = document.createElement("span");
@@ -181,32 +112,23 @@ function measureGlyphRatio() {
   document.body.appendChild(probe);
   var r = probe.offsetWidth / 100;
   document.body.removeChild(probe);
-  return r || 0.602;
+  return r || 0.6;
 }
-/* 字符画缩放适配正方形展示框（等比缩放，不变形） */
+/* 字符画缩放适配正方形展示框 */
 function fitArts() {
   var r = measureGlyphRatio();
   document.querySelectorAll(".art-fit").forEach(function (fit) {
     var pre = fit.querySelector("pre");
     if (!pre) return;
     pre.style.transform = "none";
-    pre.style.transformOrigin = "center";
     pre.style.lineHeight = (2 * r) + "";   /* 校准行高，画面不变形 */
     var boxW = fit.clientWidth, boxH = fit.clientHeight;
     var natW = pre.offsetWidth, natH = pre.offsetHeight;
     if (!natW || !natH) return;
     var s = Math.min(boxW / natW, boxH / natH, 1);
-    pre.style.transform = s < 1 ? "scale(" + s + ")" : "none";
+    pre.style.transform = "scale(" + s + ")";
   });
 }
-function onArtReady() {
-  renderArts();
-  fitArts();
-}
-window.addEventListener("load", onArtReady);
+window.addEventListener("load", fitArts);
 window.addEventListener("resize", fitArts);
-if (document.fonts && document.fonts.ready) {
-  document.fonts.ready.then(fitArts); /* 内置字体加载完成后再校准一次 */
-}
-onArtReady(); /* 脚本位于 body 末尾，DOM 已就绪 */
 </script>
