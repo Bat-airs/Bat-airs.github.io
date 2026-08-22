@@ -100,6 +100,6 @@ document.querySelectorAll(".ansi-art").forEach(function (pre) {
     .replace(/\x1b\[\?25l/g, "")
     .replace(/\x1b\[\?25h/g, "")
     .replace(/\x1b\[7m/g, "");
-  pre.innerHTML = new ansi_up().ansi_to_html(txt);
+  pre.innerHTML = new AnsiUp().ansi_to_html(txt);
 });
 </script>
