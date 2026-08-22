@@ -26,7 +26,6 @@ title: 关于我
 
   <div class="qq-card">
     <h3>我的世界服务器 · QQ 群</h3>
-    <p>群号：<strong>1025591584</strong>（扫码或搜索群号加入）</p>
-    <img src="{{ site.baseurl }}/assets/img/qq-group-qr.png" alt="QQ 群二维码">
+    <p>群号：<strong>1025591584</strong>（搜索群号加入）</p>
   </div>
 </section>
