@@ -196,6 +196,18 @@ a:hover { text-decoration: underline; }
 .avatar-sm { width: 72px; height: 72px; border-radius: 50%; }
 .about-card h3 { margin-bottom: 8px; }
 
+/* 关于页附加段落 */
+.sub-title { font-size: 17px; margin: 26px 0 10px; color: var(--text); }
+.plain-list { margin: 8px 0 0 20px; }
+.plain-list li { margin: 6px 0; font-size: 14px; }
+.closing {
+  margin-top: 22px;
+  padding-top: 16px;
+  border-top: 1px dashed var(--border);
+  color: var(--muted);
+  font-size: 14px;
+}
+
 /* ---------- 页脚 ---------- */
 .footer {
   text-align: center;
