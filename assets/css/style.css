@@ -353,6 +353,12 @@ a:hover { text-decoration: underline; }
   white-space: pre;
 }
 .art-title { color: var(--muted); font-size: 12px; margin-top: 8px; }
+.art-empty {
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+  padding: 18px 0;
+}
 /* chafa ANSI 彩色字符画：不使用渐变，颜色由 ANSI 码决定 */
 .ansi-art {
   color: #fff;

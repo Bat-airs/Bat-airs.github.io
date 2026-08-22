@@ -50,6 +50,7 @@ title: 首页
     <button class="scroll-toggle" id="scrollToggle" type="button" aria-pressed="false">⏸ 暂停滚动</button>
   </div>
   <div class="marquee">
+    {% if site.data.ascii_arts and site.data.ascii_arts.size > 0 %}
     <div class="marquee-track" id="marqueeTrack">
       {% for i in (1..2) %}
         {% for a in site.data.ascii_arts %}
@@ -66,6 +67,9 @@ title: 首页
         {% endfor %}
       {% endfor %}
     </div>
+    {% else %}
+    <p class="art-empty">（暂无字符画，可在博客管理工具 TUI 中添加）</p>
+    {% endif %}
   </div>
 </section>
 <script src="https://cdn.jsdelivr.net/npm/ansi_up@5.2.1/ansi_up.min.js"></script>
