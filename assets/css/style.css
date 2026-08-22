@@ -304,6 +304,25 @@ a:hover { text-decoration: underline; }
 
 /* ---------- 字符画（主页底部滚动展示） ---------- */
 .ascii-section { padding-bottom: 64px; }
+.sec-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+.sec-head .sec-title { margin-bottom: 0; }
+.scroll-toggle {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--accent);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 6px 16px;
+  cursor: pointer;
+  transition: all .15s;
+}
+.scroll-toggle:hover { border-color: var(--accent); }
 .marquee {
   overflow: hidden;
   border: 1px solid var(--border);

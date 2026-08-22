@@ -45,9 +45,12 @@ title: 首页
 </section>
 
 <section class="section ascii-section">
-  <h2 class="sec-title">字符画 <span class="sec-en">ASCII ART</span></h2>
+  <div class="sec-head">
+    <h2 class="sec-title">字符画 <span class="sec-en">ASCII ART</span></h2>
+    <button class="scroll-toggle" id="scrollToggle" type="button" aria-pressed="false">⏸ 暂停滚动</button>
+  </div>
   <div class="marquee">
-    <div class="marquee-track">
+    <div class="marquee-track" id="marqueeTrack">
       {% for i in (1..2) %}
         {% for a in site.data.ascii_arts %}
         <div class="art-block">
@@ -59,3 +62,24 @@ title: 首页
     </div>
   </div>
 </section>
+<script>
+(function () {
+  var track = document.getElementById("marqueeTrack");
+  var btn = document.getElementById("scrollToggle");
+  if (!track || !btn) return;
+  var playing = true;
+  btn.addEventListener("click", function () {
+    playing = !playing;
+    if (playing) {
+      track.style.animation = "marquee-scroll 40s linear infinite";
+      track.style.animationPlayState = "running";
+      btn.textContent = "⏸ 暂停滚动";
+      btn.setAttribute("aria-pressed", "false");
+    } else {
+      track.style.animationPlayState = "paused";
+      btn.textContent = "▶ 继续滚动";
+      btn.setAttribute("aria-pressed", "true");
+    }
+  });
+})();
+</script>
