@@ -49,12 +49,13 @@ a:hover { text-decoration: underline; }
 
 /* ---------- Hero ---------- */
 .hero {
-  /* 背景：transgender 旗（contain 完整显示整面旗，蓝色条纹不被裁剪） */
-  background-image: url("/assets/img/bg-flag.png");
-  background-size: contain;
-  background-repeat: no-repeat;
-  background-position: center;
-  background-color: #ffffff;
+  /* 标准跨性别旗（5 条横纹：蓝-粉-白-粉-蓝），CSS 渐变绘制，蓝色条纹完整可见 */
+  background: linear-gradient(to bottom,
+    #5BCEFA 0%, #5BCEFA 20%,
+    #F5A9B8 20%, #F5A9B8 40%,
+    #FFFFFF 40%, #FFFFFF 60%,
+    #F5A9B8 60%, #F5A9B8 80%,
+    #5BCEFA 80%, #5BCEFA 100%);
   color: var(--text);
   text-align: center;
   padding: 52px 24px;
