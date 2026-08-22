@@ -2,18 +2,3 @@
   desc: 图片/视频转 ASCII 艺术的本地 Web 图形界面，支持彩色输出与 12 种语言字符
   url: https://github.com/Bat-airs/AsciiCraft-GUI
   tag: Python · Flask · 工具
-
-- name: mtf
-  desc: 个人项目（待补充介绍）
-  url: https://github.com/Bat-airs/mtf
-  tag: 项目
-
-- name: fang-ring-ServerAuthMod-GitHub
-  desc: 服务器认证模组（待补充介绍）
-  url: https://github.com/Bat-airs/fang-ring-ServerAuthMod-GitHub
-  tag: 模组
-
-- name: Lorien
-  desc: 无限画布绘图/白板应用（Fork）
-  url: https://github.com/Bat-airs/Lorien
-  tag: Godot · Fork
