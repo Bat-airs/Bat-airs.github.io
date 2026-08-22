@@ -49,13 +49,19 @@ a:hover { text-decoration: underline; }
 
 /* ---------- Hero ---------- */
 .hero {
-  /* 背景：transgender 旗（铺满，文字用深色保证可读） */
+  /* 背景：transgender 旗（contain 完整显示整面旗，蓝色条纹不被裁剪） */
   background-image: url("/assets/img/bg-flag.png");
-  background-size: cover;
+  background-size: contain;
+  background-repeat: no-repeat;
   background-position: center;
+  background-color: #ffffff;
   color: var(--text);
   text-align: center;
-  padding: 72px 24px 64px;
+  padding: 52px 24px;
+  min-height: 400px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .hero-inner { max-width: 640px; margin: 0 auto; }
 .avatar {
