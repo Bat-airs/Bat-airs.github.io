@@ -44,6 +44,8 @@ from textual.widgets import (
     TextArea,
 )
 
+from rich.text import Text as RichText
+
 BASE = pathlib.Path(__file__).resolve().parent
 POSTS_DIR = BASE / "_posts"
 IMG_DIR = BASE / "assets" / "img"
@@ -151,14 +153,24 @@ def load_ascii_arts() -> list:
 
 
 def save_ascii_arts(items: list) -> None:
-    """写回 _data/ascii_arts.yml。"""
+    """写回 _data/ascii_arts.yml（使用 |2 字面块，文件里可直接阅读字符画）。"""
     ASCII_FILE.parent.mkdir(parents=True, exist_ok=True)
-    ASCII_FILE.write_text(
-        yaml.safe_dump(
-            items, allow_unicode=True, sort_keys=False, default_flow_style=False,
-        ),
-        encoding="utf-8",
-    )
+
+    def _plain(s: str) -> str:
+        """标题等短字段简单转义。"""
+        return s.replace("\\", "\\\\").replace("\n", " ")
+
+    out = []
+    for it in items:
+        out.append(f"- title: {_plain(it.get('title', ''))}")
+        if it.get("color"):
+            out.append(f"  color: {it['color']}")
+        if it.get("ansi"):
+            out.append("  ansi: true")
+        out.append("  art: |2")
+        for line in it.get("art", "").split("\n"):
+            out.append("    " + line)  # 4 空格基准 + 保留原有前导空格
+    ASCII_FILE.write_text("\n".join(out) + "\n", encoding="utf-8")
 
 
 def chafa_generate(image: str, width: int, height: int = 0) -> str:
@@ -484,6 +496,29 @@ class ChafaScreen(ModalScreen):
         self.app.pop_screen()
 
 
+class ArtPreviewScreen(Screen):
+    """字符画预览（终端内正确排版；ANSI 码显示彩色）。"""
+
+    BINDINGS = [Binding("escape", "close", "关闭"), Binding("q", "close", "关闭")]
+
+    def __init__(self, item: dict, **kwargs):
+        super().__init__(**kwargs)
+        self.item = item
+
+    def compose(self) -> ComposeResult:
+        yield Header(show_clock=True)
+        title = self.item.get("title") or "（无标题）"
+        yield Label(f"🎨 {title}", id="preview-title")
+        art = self.item.get("art", "")
+        text = RichText.from_ansi(art) if self.item.get("ansi") else RichText(art)
+        yield Static(text, id="preview-body")
+        yield Label("ESC 或 q 返回", id="preview-hint")
+        yield Footer()
+
+    def action_close(self) -> None:
+        self.app.pop_screen()
+
+
 class ConfirmScreen(ModalScreen):
     """确认弹窗。"""
 
@@ -554,6 +589,9 @@ class BlogApp(App):
     #art-actions { height: auto; padding: 0 0 1 0; }
     #art-actions Button { margin-right: 1; }
     #art-hint { color: $text-muted; padding-top: 1; }
+    #preview-title { padding: 1 2; text-style: bold; }
+    #preview-body { padding: 1 2; border: round $primary; height: 1fr; }
+    #preview-hint { color: $text-muted; padding: 0 2; }
     #chafa-box {
         width: 70; height: auto; padding: 1 2;
         border: thick $primary; background: $surface;
@@ -598,9 +636,10 @@ class BlogApp(App):
                     with Horizontal(id="art-actions"):
                         yield Button("新建字符画", id="art-new-btn")
                         yield Button("从图片生成", id="art-chafa-btn")
+                        yield Button("预览", id="art-prev-btn")
                         yield Button("编辑", id="art-edit-btn")
                         yield Button("删除", id="art-del-btn", variant="error")
-                    yield Label("主页底部滚动展示 · Enter 编辑 · d 删除 · 保存后按 p 发布", id="art-hint")
+                    yield Label("Enter 编辑 · v 预览 · d 删除 · 保存后按 p 发布", id="art-hint")
         yield Footer()
 
     def on_mount(self) -> None:
@@ -700,6 +739,12 @@ class BlogApp(App):
             self.push_screen(AsciiArtEditScreen())
         elif bid == "art-chafa-btn":
             self.push_screen(ChafaScreen())
+        elif bid == "art-prev-btn":
+            idx, item = self.selected_ascii_art()
+            if item is None:
+                self.notify("没有选中的字符画", severity="warning", timeout=2)
+            else:
+                self.push_screen(ArtPreviewScreen(item))
         elif bid == "art-edit-btn":
             idx, item = self.selected_ascii_art()
             if item is None:
@@ -741,6 +786,13 @@ class BlogApp(App):
             self.push_screen(EditorScreen(posts[idx]["path"]))
 
     def on_key(self, event) -> None:
+        if self.screen is self:
+            art_lv = self.query_one("#art-list", ListView)
+            if art_lv.has_focus and event.key == "v":
+                idx, item = self.selected_ascii_art()
+                if item is not None:
+                    self.push_screen(ArtPreviewScreen(item))
+                return
         if event.key == "d" and self.screen is self:
             art_lv = self.query_one("#art-list", ListView)
             if art_lv.has_focus:
