@@ -54,7 +54,9 @@ title: 首页
       {% for i in (1..2) %}
         {% for a in site.data.ascii_arts %}
         <div class="art-block">
-          {% if a.color %}
+          {% if a.ansi %}
+          <pre class="ansi-art">{{ a.art }}</pre>
+          {% elsif a.color %}
           <pre style="color:{{ a.color }};background:none;-webkit-background-clip:initial;background-clip:initial">{{ a.art }}</pre>
           {% else %}
           <pre>{{ a.art }}</pre>
@@ -66,6 +68,7 @@ title: 首页
     </div>
   </div>
 </section>
+<script src="https://cdn.jsdelivr.net/npm/ansi_up@5.2.1/ansi_up.min.js"></script>
 <script>
 (function () {
   var track = document.getElementById("marqueeTrack");
@@ -86,4 +89,12 @@ title: 首页
     }
   });
 })();
+/* ANSI 彩色字符画（chafa 输出）渲染 */
+document.querySelectorAll(".ansi-art").forEach(function (pre) {
+  var txt = pre.textContent
+    .replace(/\x1b\[\?25l/g, "")
+    .replace(/\x1b\[\?25h/g, "")
+    .replace(/\x1b\[7m/g, "");
+  pre.innerHTML = new ansi_up().ansi_to_html(txt);
+});
 </script>

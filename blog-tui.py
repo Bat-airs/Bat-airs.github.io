@@ -161,6 +161,26 @@ def save_ascii_arts(items: list) -> None:
     )
 
 
+def chafa_generate(image: str, width: int, height: int = 0) -> str:
+    """用 chafa 把图片转成 ANSI 彩色 Unicode 字符画。"""
+    chafa = shutil.which("chafa")
+    if not chafa:
+        raise RuntimeError("未找到 chafa，请先安装（sudo apt install chafa）")
+    if not os.path.isfile(image):
+        raise FileNotFoundError(f"图片不存在: {image}")
+    size = str(width) if not height else f"{width}x{height}"
+    cmd = [chafa, "--format", "symbols", "--size", size, image]
+    r = subprocess.run(
+        cmd, capture_output=True, text=True, encoding="utf-8", errors="replace",
+    )
+    if r.returncode != 0:
+        raise RuntimeError(r.stderr.strip() or "chafa 运行失败")
+    out = r.stdout
+    # 清洗对网页无意义的控制码（光标隐藏/显示、反显）
+    out = out.replace("\x1b[?25l", "").replace("\x1b[?25h", "").replace("\x1b[7m", "")
+    return out.rstrip("\n")
+
+
 def list_posts() -> list:
     """按时间倒序列出文章。"""
     if not POSTS_DIR.exists():
@@ -390,13 +410,16 @@ class AsciiArtEditScreen(ModalScreen):
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "a-save":
             color = self.query_one("#a-color", Input).value.strip()
+            art = self.query_one("#a-art", TextArea).text.rstrip("\n")
             data = {
                 "title": self.query_one("#a-title", Input).value.strip(),
-                "art": self.query_one("#a-art", TextArea).text.rstrip("\n"),
+                "art": art,
             }
             if color:
                 data["color"] = color
-            if not data["art"].strip():
+            if "\x1b" in art:  # 含 ANSI 转义码 = chafa 彩色字符画
+                data["ansi"] = True
+            if not art.strip():
                 self.notify("字符画内容不能为空", severity="error", timeout=3)
                 return
             items = load_ascii_arts()
@@ -408,6 +431,52 @@ class AsciiArtEditScreen(ModalScreen):
             self.notify("已保存字符画，记得按 p 发布", severity="information", timeout=4)
             self.app.pop_screen()
             self.app.refresh_ascii_arts()
+        else:
+            self.app.pop_screen()
+
+    def action_cancel(self) -> None:
+        self.app.pop_screen()
+
+
+class ChafaScreen(ModalScreen):
+    """从图片生成字符画（chafa）。"""
+
+    BINDINGS = [Binding("escape", "cancel", "取消")]
+
+    def compose(self) -> ComposeResult:
+        with Vertical(id="chafa-box"):
+            yield Label("🖼️ 从图片生成字符画（chafa）")
+            yield Input(placeholder="图片路径（如 /home/bat/桌面/a.png）", id="c-img")
+            yield Input(placeholder="宽度（字符数，如 60）", id="c-width")
+            yield Input(placeholder="高度（可选，留空自动按比例）", id="c-height")
+            with Horizontal(id="chafa-bar"):
+                yield Button("生成", id="c-go", variant="primary")
+                yield Button("取消", id="c-close")
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "c-go":
+            img = self.query_one("#c-img", Input).value.strip()
+            try:
+                width = int(self.query_one("#c-width", Input).value.strip() or 60)
+            except ValueError:
+                self.notify("宽度必须是数字", severity="error", timeout=3)
+                return
+            height = 0
+            hv = self.query_one("#c-height", Input).value.strip()
+            if hv:
+                try:
+                    height = int(hv)
+                except ValueError:
+                    self.notify("高度必须是数字", severity="error", timeout=3)
+                    return
+            try:
+                art = chafa_generate(img, width, height)
+            except Exception as e:
+                self.notify(str(e), severity="error", timeout=5)
+                return
+            self.notify("已生成，可修改后保存", severity="information", timeout=3)
+            self.app.pop_screen()
+            self.app.push_screen(AsciiArtEditScreen({"title": "", "art": art}))
         else:
             self.app.pop_screen()
 
@@ -485,6 +554,14 @@ class BlogApp(App):
     #art-actions { height: auto; padding: 0 0 1 0; }
     #art-actions Button { margin-right: 1; }
     #art-hint { color: $text-muted; padding-top: 1; }
+    #chafa-box {
+        width: 70; height: auto; padding: 1 2;
+        border: thick $primary; background: $surface;
+        align-horizontal: center; align-vertical: middle;
+    }
+    #chafa-box Input { margin: 0 0 1 0; }
+    #chafa-bar { align-horizontal: center; padding-top: 1; }
+    #chafa-bar Button { margin: 0 1; }
     """
     BINDINGS = [
         Binding("q", "quit", "退出"),
@@ -520,6 +597,7 @@ class BlogApp(App):
                     yield ListView(id="art-list")
                     with Horizontal(id="art-actions"):
                         yield Button("新建字符画", id="art-new-btn")
+                        yield Button("从图片生成", id="art-chafa-btn")
                         yield Button("编辑", id="art-edit-btn")
                         yield Button("删除", id="art-del-btn", variant="error")
                     yield Label("主页底部滚动展示 · Enter 编辑 · d 删除 · 保存后按 p 发布", id="art-hint")
@@ -620,6 +698,8 @@ class BlogApp(App):
             self.push_screen(ConfirmScreen(f"确认删除项目：\n{item.get('name')}？", do_del))
         elif bid == "art-new-btn":
             self.push_screen(AsciiArtEditScreen())
+        elif bid == "art-chafa-btn":
+            self.push_screen(ChafaScreen())
         elif bid == "art-edit-btn":
             idx, item = self.selected_ascii_art()
             if item is None:

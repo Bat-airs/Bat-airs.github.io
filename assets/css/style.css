@@ -353,6 +353,14 @@ a:hover { text-decoration: underline; }
   white-space: pre;
 }
 .art-title { color: var(--muted); font-size: 12px; margin-top: 8px; }
+/* chafa ANSI 彩色字符画：不使用渐变，颜色由 ANSI 码决定 */
+.ansi-art {
+  color: #fff;
+  background: none;
+  -webkit-background-clip: initial;
+  background-clip: initial;
+  text-shadow: none;
+}
 @keyframes marquee-scroll {
   from { transform: translateX(0); }
   to { transform: translateX(-50%); }
