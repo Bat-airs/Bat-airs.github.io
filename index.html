@@ -104,12 +104,24 @@ document.querySelectorAll(".ansi-art").forEach(function (pre) {
     .replace(/\x1b\[7m/g, "");
   pre.innerHTML = new AnsiUp().ansi_to_html(txt);
 });
+/* 字符画渲染校准：实测字形宽比 r，行高 = 2r（匹配 chafa 的 1:2 字符格假设） */
+function measureGlyphRatio() {
+  var probe = document.createElement("span");
+  probe.style.cssText = "position:absolute;visibility:hidden;white-space:pre;font-family:'Art Mono',monospace;font-size:100px;line-height:1;";
+  probe.textContent = "M";
+  document.body.appendChild(probe);
+  var r = probe.offsetWidth / 100;
+  document.body.removeChild(probe);
+  return r || 0.6;
+}
 /* 字符画缩放适配正方形展示框 */
 function fitArts() {
+  var r = measureGlyphRatio();
   document.querySelectorAll(".art-fit").forEach(function (fit) {
     var pre = fit.querySelector("pre");
     if (!pre) return;
     pre.style.transform = "none";
+    pre.style.lineHeight = (2 * r) + "";   /* 校准行高，画面不变形 */
     var boxW = fit.clientWidth, boxH = fit.clientHeight;
     var natW = pre.offsetWidth, natH = pre.offsetHeight;
     if (!natW || !natH) return;

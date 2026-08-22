@@ -1,4 +1,10 @@
 /* Bat-airs.github.io — 作品集风格 */
+/* 内置等宽字体：方块字符标准半宽，避免 CJK 字体全角拉伸（见 ART-RENDERING 契约） */
+@font-face {
+  font-family: "Art Mono";
+  src: url("/assets/fonts/DejaVuSansMono.ttf") format("truetype");
+  font-display: swap;
+}
 :root {
   --bg: #fafafa;
   --card: #ffffff;
@@ -363,7 +369,7 @@ a:hover { text-decoration: underline; }
   overflow: hidden;
 }
 .art-block pre {
-  font-family: var(--mono); /* 等宽字体，保证字符画不变形 */
+  font-family: "Art Mono", var(--mono); /* Art Mono 第一位，保证半宽方块字符 */
   color: transparent;
   background: linear-gradient(90deg,
     #f9a8d4, #f472b6, #a78bfa, #60a5fa, #34d399, #fbbf24, #f87171);
