@@ -5,8 +5,24 @@ layout: default
 <article class="post">
   <h1 class="post-title">{{ page.title }}</h1>
   <p class="post-meta">{{ page.date | date: "%Y-%m-%d" }}{% if page.tags %} · {{ page.tags | join: " / " }}{% endif %}</p>
+
+  {% if page.image %}
+  <img class="post-cover" src="{{ page.image }}" alt="{{ page.title }}">
+  {% endif %}
+
   <div class="post-content">
     {{ content }}
   </div>
+
+  {% if page.gallery %}
+  <div class="gallery">
+    {% for img in page.gallery %}
+    <a href="{{ img }}" target="_blank" rel="noopener">
+      <img src="{{ img }}" alt="图片 {{ forloop.index }}" loading="lazy">
+    </a>
+    {% endfor %}
+  </div>
+  {% endif %}
+
   <p class="back"><a href="/blog/">← 返回文章列表</a></p>
 </article>
