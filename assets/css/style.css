@@ -14,11 +14,22 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html { scroll-behavior: smooth; }
 body {
-  background: var(--bg);
   color: var(--text);
   font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei",
     "Noto Sans CJK SC", "Source Han Sans SC", sans-serif;
   line-height: 1.75;
+  /* 背景：transgender flag（固定铺满 + 白色半透明遮罩保证可读性） */
+  background-image: url("/assets/img/bg-flag.png");
+  background-size: cover;
+  background-attachment: fixed;
+  background-position: center;
+}
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.85);
+  z-index: -1;
 }
 a { color: var(--accent); text-decoration: none; }
 a:hover { text-decoration: underline; }
