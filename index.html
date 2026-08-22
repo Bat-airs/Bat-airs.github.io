@@ -74,8 +74,72 @@ title: 首页
     {% endif %}
   </div>
 </section>
-<script src="/assets/js/ansi-art.js"></script>
 <script>
+/* ===== ANSI → HTML 彩色渲染器（内联，零外部依赖）===== */
+(function () {
+  var BASIC = ["#000", "#a00", "#0a0", "#a50", "#00a", "#a0a", "#0aa", "#aaa",
+               "#555", "#f55", "#5f5", "#ff5", "#55f", "#f5f", "#5ff", "#fff"];
+  function xterm256(n) {
+    if (n < 16) return BASIC[n];
+    if (n < 232) {
+      n -= 16;
+      function v(c) { return c === 0 ? "00" : (55 + c * 40).toString(16); }
+      return "#" + v(Math.floor(n / 36)) + v(Math.floor((n % 36) / 6)) + v(n % 6);
+    }
+    var g = (8 + (n - 232) * 10).toString(16);
+    return "#" + g + g + g;
+  }
+  window.ansiToHtml = function (text) {
+    var esc = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    var html = "", fg = null, bg = null, open = false;
+    var re = /\x1b\[([0-9;]*)m/g;
+    var last = 0, m;
+    function close() { if (open) { html += "</span>"; open = false; } }
+    function apply() {
+      close();
+      var parts = [];
+      if (fg) parts.push("color:" + fg);
+      if (bg) parts.push("background-color:" + bg);
+      if (parts.length) { html += '<span style="' + parts.join(";") + '">'; open = true; }
+    }
+    while ((m = re.exec(esc)) !== null) {
+      html += esc.slice(last, m.index);
+      last = m.index + m[0].length;
+      var codes = m[1] ? m[1].split(";").map(Number) : [0];
+      var i = 0;
+      while (i < codes.length) {
+        var c = codes[i];
+        if (c === 0) { fg = null; bg = null; i++; }
+        else if (c >= 30 && c <= 37) { fg = BASIC[c - 30]; i++; }
+        else if (c >= 90 && c <= 97) { fg = BASIC[c - 90 + 8]; i++; }
+        else if (c >= 40 && c <= 47) { bg = BASIC[c - 40]; i++; }
+        else if (c >= 100 && c <= 107) { bg = BASIC[c - 100 + 8]; i++; }
+        else if ((c === 38 || c === 48) && codes[i + 1] === 5) {
+          var col5 = xterm256(codes[i + 2]);
+          if (c === 38) fg = col5; else bg = col5;
+          i += 3;
+        } else if ((c === 38 || c === 48) && codes[i + 1] === 2) {
+          var col2 = "rgb(" + codes[i + 2] + "," + codes[i + 3] + "," + codes[i + 4] + ")";
+          if (c === 38) fg = col2; else bg = col2;
+          i += 5;
+        } else i++;
+      }
+      apply();
+    }
+    html += esc.slice(last);
+    close();
+    return html;
+  };
+  window.stripAnsi = function (text) {
+    return text.replace(/\x1b\[[0-9;?]*[A-Za-z]/g, "");
+  };
+  window.cleanAnsi = function (text) {
+    return text
+      .replace(/\\x1b/g, "\x1b")
+      .replace(/\x1b\[\?25[lh]/g, "")
+      .replace(/\x1b\[[0-9;?]*[A-LN-Za-ln-z]/g, "");
+  };
+})();
 (function () {
   var track = document.getElementById("marqueeTrack");
   var btn = document.getElementById("scrollToggle");
@@ -95,18 +159,17 @@ title: 首页
     }
   });
 })();
-/* ---- ANSI 彩色字符画渲染（本地内置，无 CDN 依赖）---- */
+/* ---- ANSI 彩色字符画渲染（内联渲染器，无任何外部依赖）---- */
 function renderArts() {
   document.querySelectorAll(".ansi-art").forEach(function (pre) {
     var txt = window.cleanAnsi ? cleanAnsi(pre.textContent) : pre.textContent;
-    if (window.ansiToHtml) {
-      try {
-        pre.innerHTML = ansiToHtml(txt);
-      } catch (e) {
-        pre.textContent = stripAnsi(txt); /* 兜底：至少显示纯字符 */
-      }
-    } else {
+    try {
+      pre.innerHTML = ansiToHtml(txt);
+      pre.setAttribute("data-rendered", "ok");
+    } catch (e) {
+      console.error("[ansi-art] 渲染失败，退回纯文本:", e);
       pre.textContent = stripAnsi(txt);
+      pre.setAttribute("data-rendered", "plain");
     }
   });
 }
