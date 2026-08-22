@@ -342,10 +342,14 @@ a:hover { text-decoration: underline; }
 .marquee:hover .marquee-track { animation-play-state: paused; }
 .art-block { flex: none; text-align: center; }
 .art-block pre {
-  color: var(--accent);
+  color: transparent;
+  background: linear-gradient(90deg,
+    #f9a8d4, #f472b6, #a78bfa, #60a5fa, #34d399, #fbbf24, #f87171);
+  -webkit-background-clip: text;
+  background-clip: text;
   font-size: 12px;
   line-height: 1.35;
-  text-shadow: 0 0 10px rgba(13, 148, 136, .4);
+  text-shadow: 0 0 14px rgba(167, 139, 250, .35);
   white-space: pre;
 }
 .art-title { color: var(--muted); font-size: 12px; margin-top: 8px; }

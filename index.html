@@ -54,7 +54,11 @@ title: 首页
       {% for i in (1..2) %}
         {% for a in site.data.ascii_arts %}
         <div class="art-block">
+          {% if a.color %}
+          <pre style="color:{{ a.color }};background:none;-webkit-background-clip:initial;background-clip:initial">{{ a.art }}</pre>
+          {% else %}
           <pre>{{ a.art }}</pre>
+          {% endif %}
           {% if a.title %}<p class="art-title">{{ a.title }}</p>{% endif %}
         </div>
         {% endfor %}

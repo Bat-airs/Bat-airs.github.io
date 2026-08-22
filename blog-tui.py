@@ -373,13 +373,14 @@ class AsciiArtEditScreen(ModalScreen):
 
     def __init__(self, item: dict | None = None, index: int | None = None, **kwargs):
         super().__init__(**kwargs)
-        self.item = item or {"title": "", "art": ""}
+        self.item = item or {"title": "", "art": "", "color": ""}
         self.index = index  # None = 新建
 
     def compose(self) -> ComposeResult:
         with Vertical(id="art-box"):
             yield Label("🎨 新建字符画" if self.index is None else "✏️ 编辑字符画")
             yield Input(self.item.get("title", ""), placeholder="标题（可选）", id="a-title")
+            yield Input(self.item.get("color", ""), placeholder="颜色（可选，如 #ff76a4；留空=彩虹渐变）", id="a-color")
             yield Label("字符画内容（多行，支持 Unicode 字符）:", id="a-lab")
             yield TextArea(self.item.get("art", ""), id="a-art")
             with Horizontal(id="art-bar"):
@@ -388,10 +389,13 @@ class AsciiArtEditScreen(ModalScreen):
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "a-save":
+            color = self.query_one("#a-color", Input).value.strip()
             data = {
                 "title": self.query_one("#a-title", Input).value.strip(),
                 "art": self.query_one("#a-art", TextArea).text.rstrip("\n"),
             }
+            if color:
+                data["color"] = color
             if not data["art"].strip():
                 self.notify("字符画内容不能为空", severity="error", timeout=3)
                 return
@@ -469,7 +473,7 @@ class BlogApp(App):
     #proj-hint { color: $text-muted; padding-top: 1; }
     #posts-hint { color: $text-muted; padding-top: 1; }
     #art-box {
-        width: 80; height: 26; padding: 1 2;
+        width: 80; height: 28; padding: 1 2;
         border: thick $primary; background: $surface;
         align-horizontal: center; align-vertical: middle;
     }
