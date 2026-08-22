@@ -20,6 +20,11 @@ import pathlib
 import shutil
 import subprocess
 
+try:
+    import yaml
+except ImportError:  # pragma: no cover
+    yaml = None
+
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical, VerticalScroll
@@ -42,6 +47,7 @@ from textual.widgets import (
 BASE = pathlib.Path(__file__).resolve().parent
 POSTS_DIR = BASE / "_posts"
 IMG_DIR = BASE / "assets" / "img"
+PROJECTS_FILE = BASE / "_data" / "projects.yml"
 
 GITHUB_REPO = "Bat-airs/Bat-airs.github.io"
 SITE_URL = "https://bat-airs.github.io"
@@ -110,6 +116,26 @@ def gh_repo_info():
         return json.loads(r.stdout)
     except Exception:
         return None
+
+
+def load_projects() -> list:
+    """读取 _data/projects.yml 的项目列表。"""
+    if yaml is None or not PROJECTS_FILE.exists():
+        return []
+    try:
+        data = yaml.safe_load(PROJECTS_FILE.read_text(encoding="utf-8"))
+        return data if isinstance(data, list) else []
+    except Exception:
+        return []
+
+
+def save_projects(items: list) -> None:
+    """写回 _data/projects.yml（保持多行格式）。"""
+    PROJECTS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    text = yaml.safe_dump(
+        items, allow_unicode=True, sort_keys=False, default_flow_style=False,
+    )
+    PROJECTS_FILE.write_text(text, encoding="utf-8")
 
 
 def list_posts() -> list:
@@ -269,6 +295,54 @@ class NewPostScreen(ModalScreen):
         self.app.pop_screen()
 
 
+class ProjectEditScreen(ModalScreen):
+    """项目信息编辑弹窗（新建/编辑）。"""
+
+    BINDINGS = [Binding("escape", "cancel", "取消")]
+
+    def __init__(self, project: dict | None = None, index: int | None = None, **kwargs):
+        super().__init__(**kwargs)
+        self.project = project or {"name": "", "desc": "", "url": "", "tag": ""}
+        self.index = index  # None = 新建
+
+    def compose(self) -> ComposeResult:
+        with Vertical(id="proj-box"):
+            yield Label("🚀 新建项目" if self.index is None else "✏️ 编辑项目")
+            yield Input(self.project.get("name", ""), placeholder="项目名称 *", id="p-name")
+            yield Input(self.project.get("desc", ""), placeholder="介绍文字（一句话）", id="p-desc")
+            yield Input(self.project.get("url", ""), placeholder="链接 https://...", id="p-url")
+            yield Input(self.project.get("tag", ""), placeholder="标签（如 Python · 工具）", id="p-tag")
+            with Horizontal(id="proj-bar"):
+                yield Button("保存", id="p-save", variant="primary")
+                yield Button("取消", id="p-close")
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "p-save":
+            data = {
+                "name": self.query_one("#p-name", Input).value.strip(),
+                "desc": self.query_one("#p-desc", Input).value.strip(),
+                "url": self.query_one("#p-url", Input).value.strip(),
+                "tag": self.query_one("#p-tag", Input).value.strip(),
+            }
+            if not data["name"]:
+                self.notify("项目名称不能为空", severity="error", timeout=3)
+                return
+            items = load_projects()
+            if self.index is None:
+                items.append(data)
+            else:
+                items[self.index] = data
+            save_projects(items)
+            self.notify("已保存项目，记得按 p 发布到博客", severity="information", timeout=4)
+            self.app.pop_screen()
+            self.app.refresh_projects()
+        else:
+            self.app.pop_screen()
+
+    def action_cancel(self) -> None:
+        self.app.pop_screen()
+
+
 class ConfirmScreen(ModalScreen):
     """确认弹窗。"""
 
@@ -314,6 +388,18 @@ class BlogApp(App):
     #newpost-box Input { margin: 1 0; }
     #newpost-bar, #confirm-bar { align-horizontal: center; }
     #newpost-bar Button, #confirm-bar Button { margin: 0 1; }
+    #proj-box {
+        width: 70; height: auto; padding: 1 2;
+        border: thick $primary; background: $surface;
+        align-horizontal: center; align-vertical: middle;
+    }
+    #proj-box Input { margin: 0 0 1 0; }
+    #proj-bar { align-horizontal: center; }
+    #proj-bar Button { margin: 0 1; }
+    #proj-actions { height: auto; padding: 0 0 1 0; }
+    #proj-actions Button { margin-right: 1; }
+    #proj-hint { color: $text-muted; padding-top: 1; }
+    #posts-hint { color: $text-muted; padding-top: 1; }
     """
     BINDINGS = [
         Binding("q", "quit", "退出"),
@@ -336,11 +422,20 @@ class BlogApp(App):
                 with Vertical(id="posts-pane"):
                     yield ListView(id="post-list")
                     yield Label("↑↓ 选择 · Enter 编辑 · d 删除 · 快捷键: n 新建 / p 发布", id="posts-hint")
+            with TabPane("🚀 项目", id="proj"):
+                with Vertical(id="proj-pane"):
+                    yield ListView(id="project-list")
+                    with Horizontal(id="proj-actions"):
+                        yield Button("新建项目", id="proj-new-btn")
+                        yield Button("编辑", id="proj-edit-btn")
+                        yield Button("删除", id="proj-del-btn", variant="error")
+                    yield Label("Enter 编辑 · d 删除 · 保存后按 p 发布到博客", id="proj-hint")
         yield Footer()
 
     def on_mount(self) -> None:
         self.refresh_dashboard()
         self.refresh_posts()
+        self.refresh_projects()
 
     # ---------- 工具 ----------
     def refresh_dashboard(self) -> None:
@@ -357,6 +452,24 @@ class BlogApp(App):
             d = p["path"].name[:10]
             lv.append(ListItem(Label(f"{d}  {p['title']}  ·  {p['name']}")))
 
+    def refresh_projects(self) -> None:
+        lv = self.query_one("#project-list", ListView)
+        lv.clear()
+        items = load_projects()
+        if not items:
+            lv.append(ListItem(Label("（还没有项目，点「新建项目」添加）")))
+            return
+        for it in items:
+            lv.append(ListItem(Label(f"{it.get('name', '?')}  ·  {it.get('tag', '')}")))
+
+    def selected_project(self):
+        lv = self.query_one("#project-list", ListView)
+        idx = lv.index
+        items = load_projects()
+        if idx is None or idx >= len(items):
+            return None, None
+        return idx, items[idx]
+
     # ---------- 事件 ----------
     def on_button_pressed(self, event: Button.Pressed) -> None:
         bid = event.button.id
@@ -369,8 +482,37 @@ class BlogApp(App):
             self.action_publish()
         elif bid == "quit-btn":
             self.exit()
+        elif bid == "proj-new-btn":
+            self.push_screen(ProjectEditScreen())
+        elif bid == "proj-edit-btn":
+            idx, item = self.selected_project()
+            if item is None:
+                self.notify("没有选中的项目", severity="warning", timeout=2)
+            else:
+                self.push_screen(ProjectEditScreen(item, idx))
+        elif bid == "proj-del-btn":
+            idx, item = self.selected_project()
+            if item is None:
+                self.notify("没有选中的项目", severity="warning", timeout=2)
+                return
+
+            def do_del():
+                items = load_projects()
+                if idx < len(items):
+                    items.pop(idx)
+                    save_projects(items)
+                    self.notify(f"已删除 {item.get('name')}", severity="warning", timeout=3)
+                self.refresh_projects()
+
+            self.push_screen(ConfirmScreen(f"确认删除项目：\n{item.get('name')}？", do_del))
 
     def on_list_view_selected(self, event: ListView.Selected) -> None:
+        lv = getattr(event, "list_view", None)
+        if getattr(lv, "id", None) == "project-list":
+            idx, item = self.selected_project()
+            if item is not None:
+                self.push_screen(ProjectEditScreen(item, idx))
+            return
         posts = list_posts()
         idx = self.query_one("#post-list", ListView).index
         if idx is not None and idx < len(posts):
@@ -378,6 +520,22 @@ class BlogApp(App):
 
     def on_key(self, event) -> None:
         if event.key == "d" and self.screen is self:
+            proj_lv = self.query_one("#project-list", ListView)
+            if proj_lv.has_focus:
+                idx, item = self.selected_project()
+                if item is None:
+                    return
+
+                def do_del():
+                    items = load_projects()
+                    if idx < len(items):
+                        items.pop(idx)
+                        save_projects(items)
+                        self.notify(f"已删除 {item.get('name')}", severity="warning", timeout=3)
+                    self.refresh_projects()
+
+                self.push_screen(ConfirmScreen(f"确认删除项目：\n{item.get('name')}？", do_del))
+                return
             lv = self.query_one("#post-list", ListView)
             idx = lv.index
             posts = list_posts()
