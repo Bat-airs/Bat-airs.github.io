@@ -83,7 +83,7 @@ a:hover { text-decoration: underline; }
     #FFFFFF 40%, #FFFFFF 60%,
     #F5A9B8 60%, #F5A9B8 80%,
     #5BCEFA 80%, #5BCEFA 100%);
-  color: var(--text);
+  color: #1f2937; /* 旗面浅色，文字固定深色，深色模式下也不变淡 */
   text-align: center;
   padding: 52px 24px;
   min-height: 400px;
@@ -102,10 +102,10 @@ a:hover { text-decoration: underline; }
 .hero h1 { margin-top: 18px; font-size: 34px; letter-spacing: 2px; }
 .tagline { color: #374151; margin-top: 8px; font-size: 15px; }
 .x-id { color: #4b5563; margin-top: 6px; font-size: 13px; }
-.x-id a { color: var(--accent); }
+.x-id a { color: #0d9488; }
 .hero-links { margin-top: 26px; display: flex; gap: 14px; justify-content: center; }
 .hero-links a {
-  color: var(--text);
+  color: #1f2937; /* 固定深色，保证旗面上可读 */
   border: 1px solid rgba(31, 41, 55, .35);
   padding: 8px 20px;
   border-radius: 999px;
