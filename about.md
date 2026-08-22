@@ -7,7 +7,7 @@ title: 关于我
   <h2 class="sec-title">关于我 <span class="sec-en">ABOUT</span></h2>
 
   <div class="about-card">
-    <img class="avatar-sm" src="https://pbs.twimg.com/profile_images/2089673880214614016/fou340SI_normal.jpg" alt="头像">
+    <img class="avatar-sm" src="https://github.com/Bat-airs.png" alt="头像">
     <div>
       <h3>Bat airs（X: airis_batN🍥）</h3>
       <p>X / Twitter：<a href="https://x.com/AirisTendouX2K" target="_blank" rel="noopener">@AirisTendouX2K</a> · GitHub：<a href="https://github.com/Bat-airs" target="_blank" rel="noopener">Bat-airs</a></p>
