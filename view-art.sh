@@ -21,7 +21,7 @@ for i, a in enumerate(arts, 1):
     console.print(f"[bold cyan]{i}. {a.get('title') or '（无标题）'}[/]")
     art = a.get("art", "")
     if a.get("ansi"):
-        console.print(Text.from_ansi(art))
+        console.print(Text.from_ansi(bt.decode_ansi(art)))
     else:
         console.print(Text(art))
     console.print()

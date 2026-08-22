@@ -169,8 +169,15 @@ def save_ascii_arts(items: list) -> None:
             out.append("  ansi: true")
         out.append("  art: |2")
         for line in it.get("art", "").split("\n"):
+            # YAML 不允许原始 ESC 控制符：转义为字面 \x1b，前端再还原
+            line = line.replace("\x1b", "\\x1b")
             out.append("    " + line)  # 4 空格基准 + 保留原有前导空格
     ASCII_FILE.write_text("\n".join(out) + "\n", encoding="utf-8")
+
+
+def decode_ansi(art: str) -> str:
+    """把存储的字面 \x1b 还原为真实 ESC（用于预览/查看）。"""
+    return art.replace("\\x1b", "\x1b")
 
 
 def chafa_generate(image: str, width: int, height: int = 0) -> str:
@@ -510,6 +517,8 @@ class ArtPreviewScreen(Screen):
         title = self.item.get("title") or "（无标题）"
         yield Label(f"🎨 {title}", id="preview-title")
         art = self.item.get("art", "")
+        if self.item.get("ansi"):
+            art = decode_ansi(art)
         text = RichText.from_ansi(art) if self.item.get("ansi") else RichText(art)
         yield Static(text, id="preview-body")
         yield Label("ESC 或 q 返回", id="preview-hint")

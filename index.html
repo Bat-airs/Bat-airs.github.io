@@ -92,6 +92,7 @@ title: 首页
 /* ANSI 彩色字符画（chafa 输出）渲染 */
 document.querySelectorAll(".ansi-art").forEach(function (pre) {
   var txt = pre.textContent
+    .replace(/\\x1b/g, "\x1b")      /* 还原字面 \x1b 为真实 ESC */
     .replace(/\x1b\[\?25l/g, "")
     .replace(/\x1b\[\?25h/g, "")
     .replace(/\x1b\[7m/g, "");
