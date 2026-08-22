@@ -48,6 +48,7 @@ BASE = pathlib.Path(__file__).resolve().parent
 POSTS_DIR = BASE / "_posts"
 IMG_DIR = BASE / "assets" / "img"
 PROJECTS_FILE = BASE / "_data" / "projects.yml"
+ASCII_FILE = BASE / "_data" / "ascii_arts.yml"
 
 GITHUB_REPO = "Bat-airs/Bat-airs.github.io"
 SITE_URL = "https://bat-airs.github.io"
@@ -136,6 +137,28 @@ def save_projects(items: list) -> None:
         items, allow_unicode=True, sort_keys=False, default_flow_style=False,
     )
     PROJECTS_FILE.write_text(text, encoding="utf-8")
+
+
+def load_ascii_arts() -> list:
+    """读取 _data/ascii_arts.yml 的字符画列表。"""
+    if yaml is None or not ASCII_FILE.exists():
+        return []
+    try:
+        data = yaml.safe_load(ASCII_FILE.read_text(encoding="utf-8"))
+        return data if isinstance(data, list) else []
+    except Exception:
+        return []
+
+
+def save_ascii_arts(items: list) -> None:
+    """写回 _data/ascii_arts.yml。"""
+    ASCII_FILE.parent.mkdir(parents=True, exist_ok=True)
+    ASCII_FILE.write_text(
+        yaml.safe_dump(
+            items, allow_unicode=True, sort_keys=False, default_flow_style=False,
+        ),
+        encoding="utf-8",
+    )
 
 
 def list_posts() -> list:
@@ -343,6 +366,51 @@ class ProjectEditScreen(ModalScreen):
         self.app.pop_screen()
 
 
+class AsciiArtEditScreen(ModalScreen):
+    """字符画编辑弹窗（新建/编辑）。"""
+
+    BINDINGS = [Binding("escape", "cancel", "取消")]
+
+    def __init__(self, item: dict | None = None, index: int | None = None, **kwargs):
+        super().__init__(**kwargs)
+        self.item = item or {"title": "", "art": ""}
+        self.index = index  # None = 新建
+
+    def compose(self) -> ComposeResult:
+        with Vertical(id="art-box"):
+            yield Label("🎨 新建字符画" if self.index is None else "✏️ 编辑字符画")
+            yield Input(self.item.get("title", ""), placeholder="标题（可选）", id="a-title")
+            yield Label("字符画内容（多行，支持 Unicode 字符）:", id="a-lab")
+            yield TextArea(self.item.get("art", ""), id="a-art")
+            with Horizontal(id="art-bar"):
+                yield Button("保存", id="a-save", variant="primary")
+                yield Button("取消", id="a-close")
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "a-save":
+            data = {
+                "title": self.query_one("#a-title", Input).value.strip(),
+                "art": self.query_one("#a-art", TextArea).text.rstrip("\n"),
+            }
+            if not data["art"].strip():
+                self.notify("字符画内容不能为空", severity="error", timeout=3)
+                return
+            items = load_ascii_arts()
+            if self.index is None:
+                items.append(data)
+            else:
+                items[self.index] = data
+            save_ascii_arts(items)
+            self.notify("已保存字符画，记得按 p 发布", severity="information", timeout=4)
+            self.app.pop_screen()
+            self.app.refresh_ascii_arts()
+        else:
+            self.app.pop_screen()
+
+    def action_cancel(self) -> None:
+        self.app.pop_screen()
+
+
 class ConfirmScreen(ModalScreen):
     """确认弹窗。"""
 
@@ -400,6 +468,19 @@ class BlogApp(App):
     #proj-actions Button { margin-right: 1; }
     #proj-hint { color: $text-muted; padding-top: 1; }
     #posts-hint { color: $text-muted; padding-top: 1; }
+    #art-box {
+        width: 80; height: 26; padding: 1 2;
+        border: thick $primary; background: $surface;
+        align-horizontal: center; align-vertical: middle;
+    }
+    #art-box Input { margin: 0 0 1 0; }
+    #a-lab { color: $text-muted; margin-bottom: 1; }
+    #a-art { height: 12; border: round $primary; }
+    #art-bar { align-horizontal: center; padding-top: 1; }
+    #art-bar Button { margin: 0 1; }
+    #art-actions { height: auto; padding: 0 0 1 0; }
+    #art-actions Button { margin-right: 1; }
+    #art-hint { color: $text-muted; padding-top: 1; }
     """
     BINDINGS = [
         Binding("q", "quit", "退出"),
@@ -430,12 +511,21 @@ class BlogApp(App):
                         yield Button("编辑", id="proj-edit-btn")
                         yield Button("删除", id="proj-del-btn", variant="error")
                     yield Label("Enter 编辑 · d 删除 · 保存后按 p 发布到博客", id="proj-hint")
+            with TabPane("🎨 字符画", id="arts"):
+                with Vertical(id="art-pane"):
+                    yield ListView(id="art-list")
+                    with Horizontal(id="art-actions"):
+                        yield Button("新建字符画", id="art-new-btn")
+                        yield Button("编辑", id="art-edit-btn")
+                        yield Button("删除", id="art-del-btn", variant="error")
+                    yield Label("主页底部滚动展示 · Enter 编辑 · d 删除 · 保存后按 p 发布", id="art-hint")
         yield Footer()
 
     def on_mount(self) -> None:
         self.refresh_dashboard()
         self.refresh_posts()
         self.refresh_projects()
+        self.refresh_ascii_arts()
 
     # ---------- 工具 ----------
     def refresh_dashboard(self) -> None:
@@ -466,6 +556,25 @@ class BlogApp(App):
         lv = self.query_one("#project-list", ListView)
         idx = lv.index
         items = load_projects()
+        if idx is None or idx >= len(items):
+            return None, None
+        return idx, items[idx]
+
+    def refresh_ascii_arts(self) -> None:
+        lv = self.query_one("#art-list", ListView)
+        lv.clear()
+        items = load_ascii_arts()
+        if not items:
+            lv.append(ListItem(Label("（还没有字符画，点「新建字符画」添加）")))
+            return
+        for it in items:
+            title = it.get("title") or "（无标题）"
+            lv.append(ListItem(Label(f"🎨 {title}")))
+
+    def selected_ascii_art(self):
+        lv = self.query_one("#art-list", ListView)
+        idx = lv.index
+        items = load_ascii_arts()
         if idx is None or idx >= len(items):
             return None, None
         return idx, items[idx]
@@ -505,13 +614,42 @@ class BlogApp(App):
                 self.refresh_projects()
 
             self.push_screen(ConfirmScreen(f"确认删除项目：\n{item.get('name')}？", do_del))
+        elif bid == "art-new-btn":
+            self.push_screen(AsciiArtEditScreen())
+        elif bid == "art-edit-btn":
+            idx, item = self.selected_ascii_art()
+            if item is None:
+                self.notify("没有选中的字符画", severity="warning", timeout=2)
+            else:
+                self.push_screen(AsciiArtEditScreen(item, idx))
+        elif bid == "art-del-btn":
+            idx, item = self.selected_ascii_art()
+            if item is None:
+                self.notify("没有选中的字符画", severity="warning", timeout=2)
+                return
+
+            def do_del():
+                items = load_ascii_arts()
+                if idx < len(items):
+                    items.pop(idx)
+                    save_ascii_arts(items)
+                    self.notify(f"已删除 {item.get('title') or item.get('art', '')[:10]}", severity="warning", timeout=3)
+                self.refresh_ascii_arts()
+
+            self.push_screen(ConfirmScreen(f"确认删除字符画：\n{item.get('title') or '（无标题）'}？", do_del))
 
     def on_list_view_selected(self, event: ListView.Selected) -> None:
         lv = getattr(event, "list_view", None)
-        if getattr(lv, "id", None) == "project-list":
+        lid = getattr(lv, "id", None)
+        if lid == "project-list":
             idx, item = self.selected_project()
             if item is not None:
                 self.push_screen(ProjectEditScreen(item, idx))
+            return
+        if lid == "art-list":
+            idx, item = self.selected_ascii_art()
+            if item is not None:
+                self.push_screen(AsciiArtEditScreen(item, idx))
             return
         posts = list_posts()
         idx = self.query_one("#post-list", ListView).index
@@ -520,6 +658,22 @@ class BlogApp(App):
 
     def on_key(self, event) -> None:
         if event.key == "d" and self.screen is self:
+            art_lv = self.query_one("#art-list", ListView)
+            if art_lv.has_focus:
+                idx, item = self.selected_ascii_art()
+                if item is None:
+                    return
+
+                def do_del():
+                    items = load_ascii_arts()
+                    if idx < len(items):
+                        items.pop(idx)
+                        save_ascii_arts(items)
+                        self.notify(f"已删除 {item.get('title') or '（无标题）'}", severity="warning", timeout=3)
+                    self.refresh_ascii_arts()
+
+                self.push_screen(ConfirmScreen(f"确认删除字符画：\n{item.get('title') or '（无标题）'}？", do_del))
+                return
             proj_lv = self.query_one("#project-list", ListView)
             if proj_lv.has_focus:
                 idx, item = self.selected_project()

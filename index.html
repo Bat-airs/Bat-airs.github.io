@@ -43,3 +43,19 @@ title: 首页
   </ul>
   <p class="more"><a href="/blog/">查看全部文章 →</a></p>
 </section>
+
+<section class="section ascii-section">
+  <h2 class="sec-title">字符画 <span class="sec-en">ASCII ART</span></h2>
+  <div class="marquee">
+    <div class="marquee-track">
+      {% for i in (1..2) %}
+        {% for a in site.data.ascii_arts %}
+        <div class="art-block">
+          <pre>{{ a.art }}</pre>
+          {% if a.title %}<p class="art-title">{{ a.title }}</p>{% endif %}
+        </div>
+        {% endfor %}
+      {% endfor %}
+    </div>
+  </div>
+</section>
