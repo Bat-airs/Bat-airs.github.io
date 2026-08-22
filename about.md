@@ -23,4 +23,10 @@ title: 关于我
   </ul>
 
   <p class="closing">这些碎片正在攒成一个"技术随笔 / 日常踩坑 / 兴趣记录"的栏目。网名里的 "bat" 既是名字，也是文件后缀的梗（.bat）——连"编译日期 2011.1.9"都是编程式的自我介绍。</p>
+
+  <div class="qq-card">
+    <h3>我的世界服务器 · QQ 群</h3>
+    <p>群号：<strong>1025591584</strong>（扫码或搜索群号加入）</p>
+    <img src="{{ site.baseurl }}/assets/img/qq-group-qr.png" alt="QQ 群二维码">
+  </div>
 </section>

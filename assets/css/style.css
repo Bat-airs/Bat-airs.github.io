@@ -208,6 +208,23 @@ a:hover { text-decoration: underline; }
   font-size: 14px;
 }
 
+/* QQ 群卡片 */
+.qq-card {
+  margin-top: 26px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 22px 28px;
+  text-align: center;
+}
+.qq-card h3 { font-size: 16px; margin-bottom: 8px; }
+.qq-card p { color: var(--muted); font-size: 14px; margin-bottom: 14px; }
+.qq-card img {
+  max-width: 220px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+}
+
 /* ---------- 页脚 ---------- */
 .footer {
   text-align: center;
