@@ -277,6 +277,42 @@ a:hover { text-decoration: underline; }
 .sub-title { font-size: 17px; margin: 26px 0 10px; color: var(--text); }
 .plain-list { margin: 8px 0 0 20px; }
 .plain-list li { margin: 6px 0; font-size: 14px; }
+.section code {
+  background: var(--code-bg);
+  border-radius: 5px;
+  padding: 2px 6px;
+  font-size: 13px;
+}
+/* 可折叠区块（关于页「更坦诚的部分」） */
+.fold {
+  margin-top: 12px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.fold > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  font-size: 14px;
+  color: var(--accent);
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+.fold > summary::-webkit-details-marker { display: none; }
+.fold > summary::before {
+  content: "▸";
+  font-size: 12px;
+  transition: transform 0.2s;
+}
+.fold[open] > summary::before { transform: rotate(90deg); }
+.fold > summary:hover { background: var(--bg); }
+.fold-body { padding: 4px 22px 20px; }
+.fold-body p { margin: 12px 0; }
+.fold-body p:first-child { margin-top: 0; }
 .closing {
   margin-top: 22px;
   padding-top: 16px;
