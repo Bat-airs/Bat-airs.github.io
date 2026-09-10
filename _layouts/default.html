@@ -6,8 +6,8 @@
   <title>{% if page.title %}{{ page.title }} · {% endif %}{{ site.title }}</title>
   <meta name="description" content="{{ site.description }}">
   <link rel="icon" href="https://github.com/Bat-airs.png">
-  <link rel="stylesheet" href="{{ site.baseurl }}/assets/css/style.css">
-  <script src="{{ site.baseurl }}/assets/js/theme.js" defer></script>
+  <link rel="stylesheet" href="{{ site.baseurl }}/assets/css/style.css?v={{ site.time | date: '%Y%m%d%H%M%S' }}">
+  <script src="{{ site.baseurl }}/assets/js/theme.js?v={{ site.time | date: '%Y%m%d%H%M%S' }}" defer></script>
 </head>
 <body>
   {% include header.html %}
